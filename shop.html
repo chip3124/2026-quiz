@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026 台北政見盲測超市</title>
+    <style>
+        :root { --primary: #2563eb; --accent: #f59e0b; --bg: #f8fafc; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; padding: 20px 15px 90px; color: #1e293b; display: flex; justify-content: center; overflow-x: hidden; }
+        .container { max-width: 450px; width: 100%; position: relative; }
+        
+        .header { background: white; padding: 16px 20px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); position: sticky; top: 10px; z-index: 10; border: 1px solid #e2e8f0; margin-bottom: 20px; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .score-tag { background: #eff6ff; color: #2563eb; font-weight: bold; padding: 4px 12px; border-radius: 20px; font-size: 14px; }
+        
+        .progress-bg { background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden; }
+        .progress-fill { background: linear-gradient(90deg, #3b82f6, #10b981); height: 100%; width: 0%; transition: width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        
+        .toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px); background: #1e293b; color: #fbbf24; padding: 10px 18px; border-radius: 20px; font-weight: bold; font-size: 13px; opacity: 0; pointer-events: none; transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); z-index: 30; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        .card { background: white; border-radius: 16px; padding: 18px; margin-bottom: 14px; border: 2px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.03); transition: border-color 0.2s, background 0.2s, transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1); cursor: pointer; user-select: none; position: relative; will-change: transform; transform: translateZ(0); }
+        .card:active { transform: scale(0.97) translateZ(0); }
+        .card.selected { border-color: var(--primary); background: #f0f6ff; box-shadow: 0 6px 16px rgba(37,99,235,0.15); }
+        
+        .card.pop-target { animation: singlePop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        @keyframes singlePop {
+            0% { transform: scale(0.95) translateZ(0); }
+            50% { transform: scale(1.035) translateZ(0); }
+            100% { transform: scale(1) translateZ(0); }
+        }
+
+        .card-tag { font-size: 11px; font-weight: bold; color: #64748b; background: #e2e8f0; padding: 2px 8px; border-radius: 6px; display: inline-block; margin-bottom: 8px; }
+        .card.selected .card-tag { background: #dbeafe; color: #1e40af; }
+        .card h3 { font-size: 16px; margin: 0 0 6px 0; display: flex; justify-content: space-between; align-items: center; }
+        .card p { font-size: 13px; color: #475569; margin: 0; line-height: 1.5; }
+
+        .check-badge { width: 24px; height: 24px; border-radius: 50%; background: #cbd5e1; color: white; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .card.selected .check-badge { background: #10b981; transform: scale(1.18) rotate(8deg); box-shadow: 0 2px 8px rgba(16,185,129,0.4); }
+
+        /* 更明顯的 +1 認同特效：加大字體、發光陰影、更彈性的飄動軌跡 */
+        .float-plus { position: absolute; right: 25px; top: 15px; font-weight: 800; color: #059669; font-size: 20px; text-shadow: 0 2px 10px rgba(16,185,129,0.4); pointer-events: none; animation: floatUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards; z-index: 5; }
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translateY(8px) scale(0.6); }
+            30% { opacity: 1; transform: translateY(-4px) scale(1.2); }
+            100% { opacity: 0; transform: translateY(-42px) scale(1); }
+        }
+
+        .particle { position: fixed; pointer-events: none; z-index: 999; font-size: 15px; will-change: transform, opacity; transform: translateZ(0); animation: particleFly 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes particleFly {
+            0% { opacity: 1; transform: translate3d(0, 0, 0) scale(0.5) rotate(0deg); }
+            70% { opacity: 1; transform: translate3d(calc(var(--dx) * 0.9), calc(var(--dy) * 0.9), 0) scale(1.1) rotate(120deg); }
+            100% { opacity: 0; transform: translate3d(var(--dx), var(--dy), 0) scale(0.5) rotate(200deg); }
+        }
+
+        .cart-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px 20px; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; box-shadow: 0 -4px 15px rgba(0,0,0,0.05); }
+        .cart-inner { max-width: 450px; width: 100%; }
+        .btn-checkout { width: 100%; background: #10b981; color: white; border: none; padding: 14px; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; transition: background 0.2s; }
+        .btn-checkout:disabled { background: #cbd5e1; cursor: not-allowed; }
+
+        .receipt { background: #fff8f0; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 25px 20px; text-align: center; font-family: "Courier New", Courier, monospace; }
+        .receipt h2 { border-bottom: 2px dashed #cbd5e1; padding-bottom: 12px; margin-top: 0; font-family: sans-serif; }
+        .receipt-item { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px; text-align: left; font-family: sans-serif; }
+        .receipt-total { border-top: 2px dashed #cbd5e1; margin-top: 15px; padding-top: 15px; font-size: 16px; font-weight: bold; font-family: sans-serif; }
+        .badge-list { background: #fef3c7; border: 1px solid #fcd34d; padding: 10px; border-radius: 8px; margin-bottom: 15px; text-align: left; font-family: sans-serif; font-size: 12px; color: #92400e; }
+    </style>
+</head>
+<body>
+
+<div id="toast" class="toast">🏆 解鎖稱號！</div>
+
+<div class="container" id="app">
+    <div class="header">
+        <div class="header-top">
+            <span style="font-weight:bold; font-size:15px;">🏪 2026 台北政見選物</span>
+            <span class="score-tag">已認同 <span id="cart-count">0</span>/12 條</span>
+        </div>
+        <div class="progress-bg">
+            <div class="progress-fill" id="progress-bar"></div>
+        </div>
+    </div>
+
+    <div id="shelf"></div>
+
+    <div class="cart-bar">
+        <div class="cart-inner">
+            <button class="btn-checkout" id="checkout-btn" disabled onclick="showReceipt()">印出我的政治血型收據 🧾</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const candidates = { "A": "蔣萬安", "B": "沈伯洋", "C": "黃珊珊" };
+    
+    const policies = [
+        { id: 1, category: "交通", title: "捷運東環線加速通車", desc: "優先推動東環線工程，升級跨區幹線公車與轉乘優惠。", cid: "A" },
+        { id: 2, category: "交通", title: "共享單車前30分鐘免費延伸", desc: "增加站點密度與調度效率，打造完整低碳轉乘網。", cid: "C" },
+        { id: 3, category: "育兒", title: "公托補助加碼與透明排隊", desc: "提高公立與準公共化托育補助，建置線上即時排隊查閱系統。", cid: "B" },
+        { id: 4, category: "育兒", title: "臨托服務點倍增與夜間喘息補助", desc: "各區設立 24 小時緊急臨托中心，減輕新手父母照顧壓力。", cid: "A" },
+        { id: 5, category: "住宅", title: "青年社宅包租代管專案", desc: "擴大民間包租代管供給，加碼青年及新婚家庭租金補貼。", cid: "C" },
+        { id: 6, category: "住宅", title: "老舊公寓耐震都更快速通道", desc: "放寬都更容積獎勵，針對危老住宅提供單一窗口專案輔導。", cid: "A" },
+        { id: 7, category: "民防", title: "全域數位韌性避難通報", desc: "建立民防數位平台與手機定位引導，強化基礎設施防護。", cid: "B" },
+        { id: 8, category: "民防", title: "全民急救與防災實務演練專案", desc: "擴大社區止血帶與 AED 操作培訓，建置物資備援庫。", cid: "B" },
+        { id: 9, category: "產業", title: "新創空間首年租金全免", desc: "利用市有閒置空間打造 AI 與 Web3 育成基地，提供創業導師。", cid: "C" },
+        { id: 10, category: "產業", title: "傳統商圈數位轉型補貼", desc: "輔導老街與夜市導入行動支付、國際雙語標示與跨境電商。", cid: "A" },
+        { id: 11, category: "環境", title: "降溫城市降雨綠建築規範", desc: "推動公有建築全面鋪設綠屋頂與透水鋪面，降低熱島效應。", cid: "B" },
+        { id: 12, category: "環境", title: "淨零排放綠色出行獎勵計畫", desc: "搭乘大眾運輸累積綠色點數，可折抵市府規費與展覽門票。", cid: "C" }
+    ];
+
+    let cart = new Set();
+    let unlockedBadges = new Map();
+
+    function renderShelf() {
+        const shelf = document.getElementById("shelf");
+        shelf.innerHTML = "";
+
+        policies.forEach(p => {
+            const isSelected = cart.has(p.id);
+            const card = document.createElement("div");
+            card.className = "card " + (isSelected ? "selected" : "");
+            card.id = "card-" + p.id;
+            card.onclick = () => toggleCart(p.id, card);
+            card.innerHTML = "<span class='card-tag'>" + p.category + "</span>" +
+                "<h3>" + p.title + "<span class='check-badge'>" + (isSelected ? "✓" : "") + "</span></h3>" +
+                "<p>" + p.desc + "</p>";
+            shelf.appendChild(card);
+        });
+    }
+
+    function toggleCart(id, cardEl) {
+        const isSelected = cart.has(id);
+        
+        if (isSelected) {
+            cart.delete(id);
+            cardEl.classList.remove("selected");
+            const badge = cardEl.querySelector(".check-badge");
+            if (badge) badge.innerText = "";
+        } else {
+            cart.add(id);
+            cardEl.classList.add("selected");
+            const badge = cardEl.querySelector(".check-badge");
+            if (badge) badge.innerText = "✓";
+
+            requestAnimationFrame(() => {
+                cardEl.classList.remove("pop-target");
+                void cardEl.offsetWidth;
+                cardEl.classList.add("pop-target");
+                
+                createFloatText(cardEl);
+                createCardParticles(cardEl);
+            });
+
+            checkComboAchievements();
+        }
+        updateCartUI();
+    }
+
+    function createFloatText(cardEl) {
+        const floatEl = document.createElement("div");
+        floatEl.className = "float-plus";
+        floatEl.innerText = "+1 認同";
+        cardEl.appendChild(floatEl);
+        setTimeout(() => floatEl.remove(), 700);
+    }
+
+    function createCardParticles(cardEl) {
+        const rect = cardEl.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        const shapes = ["✨", "⭐", "🎉", "💛"];
+        const fragment = document.createDocumentFragment();
+
+        for (let i = 0; i < 8; i++) {
+            const p = document.createElement("div");
+            p.className = "particle";
+            p.innerText = shapes[Math.floor(Math.random() * shapes.length)];
+            
+            p.style.left = centerX + "px";
+            p.style.top = centerY + "px";
+            
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 55 + Math.random() * 35;
+            const dx = Math.cos(angle) * distance + "px";
+            const dy = Math.sin(angle) * distance + "px";
+
+            p.style.setProperty("--dx", dx);
+            p.style.setProperty("--dy", dy);
+
+            fragment.appendChild(p);
+            setTimeout(() => p.remove(), 500);
+        }
+
+        document.body.appendChild(fragment);
+    }
+
+    function checkComboAchievements() {
+        const has = (id) => cart.has(id);
+        if (has(1) && has(2) && !unlockedBadges.has("traffic")) {
+            unlockedBadges.set("traffic", "🚗 捷運公車雙修大師");
+            showToast("🚗 解鎖稱號：捷運公車雙修大師！");
+        }
+        if (has(3) && has(4) && !unlockedBadges.has("parent")) {
+            unlockedBadges.set("parent", "👶 神級神隊友爸媽");
+            showToast("👶 解鎖稱號：神級神隊友爸媽！");
+        }
+        if (has(5) && has(6) && !unlockedBadges.has("housing")) {
+            unlockedBadges.set("housing", "🏠 居住正義先鋒");
+            showToast("🏠 解鎖稱號：居住正義先鋒！");
+        }
+        if (has(7) && has(8) && !unlockedBadges.has("defense")) {
+            unlockedBadges.set("defense", "🛡️ 末日生存戰略家");
+            showToast("🛡️ 解鎖稱號：末日生存戰略家！");
+        }
+        if (has(9) && has(10) && !unlockedBadges.has("biz")) {
+            unlockedBadges.set("biz", "💡 商業轉型金手指");
+            showToast("💡 解鎖稱號：商業轉型金手指！");
+        }
+        if (has(11) && has(12) && !unlockedBadges.has("env")) {
+            unlockedBadges.set("env", "🌿 極致綠色生活家");
+            showToast("🌿 解鎖稱號：極致綠色生活家！");
+        }
+        if (cart.size >= 10 && !unlockedBadges.has("master")) {
+            unlockedBadges.set("master", "👑 全能台北通才");
+            showToast("👑 隱藏稱號：全能台北通才！");
+        }
+    }
+
+    function showToast(msg) {
+        const toast = document.getElementById("toast");
+        toast.innerText = msg;
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 2200);
+    }
+
+    function updateCartUI() {
+        const count = cart.size;
+        document.getElementById("cart-count").innerText = count;
+        document.getElementById("progress-bar").style.width = ((count / 12) * 100) + "%";
+        document.getElementById("checkout-btn").disabled = count === 0;
+    }
+
+    function showReceipt() {
+        const app = document.getElementById("app");
+        const selectedPolicies = policies.filter(p => cart.has(p.id));
+        const score = {};
+        selectedPolicies.forEach(p => { score[p.cid] = (score[p.cid] || 0) + 1; });
+
+        let receiptHTML = "<div class='receipt'>" +
+            "<div style='font-size:12px; color:#888;'>2026 TAIPEI ELECTION</div>" +
+            "<h2>政治成分結帳明細</h2>" +
+            "<div style='margin-bottom:15px; text-align:left; font-size:13px; color:#666;'>共認同 " + cart.size + " 項政見</div>";
+
+        if (unlockedBadges.size > 0) {
+            receiptHTML += "<div class='badge-list'><strong>獲得成就稱號：</strong><br>";
+            unlockedBadges.forEach(title => {
+                receiptHTML += "• " + title + "<br>";
+            });
+            receiptHTML += "</div>";
+        }
+
+        receiptHTML += "<div style='border-top:1px dashed #ccc; padding-top:10px;'>";
+
+        selectedPolicies.forEach(p => {
+            receiptHTML += "<div class='receipt-item'><span>• " + p.title + "</span><strong style='color:#2563eb;'>[" + candidates[p.cid] + "]</strong></div>";
+        });
+
+        receiptHTML += "</div><div class='receipt-total'>政見成分分析：<br><br>";
+        for (let cid in score) {
+            const count = score[cid];
+            const pct = Math.round((count / cart.size) * 100);
+            receiptHTML += "<div style='color:#10b981; margin-bottom:5px;'>" + candidates[cid] + ": " + pct + "% (" + count + "條)</div>";
+        }
+
+        receiptHTML += "</div><button onclick='location.reload()' style='margin-top:20px; width:100%; padding:12px; background:#1e293b; color:white; border:none; border-radius:10px; font-weight:bold; cursor:pointer;'>重新選物</button></div>";
+        app.innerHTML = receiptHTML;
+    }
+
+    renderShelf();
+</script>
+</body>
+</html>
