@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>2026 台北市長政見盲測小遊戲</title>
+    <style>
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #eef2f6; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; overflow: hidden; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { font-size: 22px; color: #1e293b; margin: 0 0 6px 0; }
+        .progress { font-size: 14px; color: #64748b; font-weight: 600; }
+        
+        .card-container { position: relative; width: 340px; height: 420px; }
+        .card { position: absolute; width: 100%; height: 100%; background: white; border-radius: 20px; padding: 30px 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); display: flex; flex-direction: column; justify-content: space-between; cursor: grab; transition: transform 0.3s ease, opacity 0.3s ease; touch-action: none; }
+        .card:active { cursor: grabbing; }
+        
+        .tag { background: #e0f2fe; color: #0369a1; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; align-self: flex-start; }
+        .title { font-size: 20px; font-weight: bold; color: #0f172a; margin-top: 15px; line-height: 1.4; }
+        .desc { font-size: 15px; color: #475569; line-height: 1.6; margin-top: 10px; flex-grow: 1; }
+        
+        .stamp { position: absolute; top: 25px; padding: 6px 16px; border-radius: 8px; font-size: 22px; font-weight: 800; border: 3px solid; opacity: 0; transition: opacity 0.1s ease; pointer-events: none; }
+        .stamp-like { right: 25px; color: #10b981; border-color: #10b981; transform: rotate(15deg); }
+        .stamp-dislike { left: 25px; color: #ef4444; border-color: #ef4444; transform: rotate(-15deg); }
+        
+        .controls { display: flex; gap: 20px; margin-top: 25px; }
+        .btn { width: 60px; height: 60px; border-radius: 50%; border: none; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.1); font-size: 24px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.2s; }
+        .btn:hover { transform: scale(1.1); }
+        .btn-no { color: #ef4444; }
+        .btn-yes { color: #10b981; }
+
+        .result-card { background: white; padding: 30px 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); width: 340px; text-align: center; }
+        .result-item { text-align: left; background: #f8fafc; padding: 14px; border-radius: 12px; margin-bottom: 12px; border-left: 4px solid #3b82f6; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>2026 台北市長政見盲測</h1>
+    <div class="progress" id="progress">卡片載入中...</div>
+</div>
+
+<div class="card-container" id="cardContainer"></div>
+
+<div class="controls" id="controls">
+    <button class="btn btn-no" onclick="swipe('left')">✕</button>
+    <button class="btn btn-yes" onclick="swipe('right')">◯</button>
+</div>
+
+<script>
+    const candidates = { "A": "蔣萬安", "B": "沈伯洋", "C": "黃珊珊" };
+    const policies = [
+        { id: 1, category: "交通", title: "捷運東環線加速通車與跨區公車優惠", desc: "優先推動東環線工程施工進度，並全面升級跨區幹線公車網絡與轉乘優惠。", cid: "A" },
+        { id: 2, category: "育兒", title: "公托補助加碼與排隊系統透明化", desc: "提高台北市公立與準公共化托育補助金額，並建立公開透明的線上即時排隊查閱系統。", cid: "B" },
+        { id: 3, category: "住宅", title: "青年社宅包租代管專案與租金補貼", desc: "擴大民間包租代管供給量，加碼青年及新婚家庭租金補貼額度。", cid: "C" },
+        { id: 4, category: "防災", title: "耐震老屋重建專案與智慧防災監測", desc: "放寬老舊公寓更新容積獎勵，並建置全市災害即時監測告警系統。", cid: "A" },
+        { id: 5, category: "民防", title: "全域數位韌性與防空避難引導", desc: "建置民防數位通報平台與手機定位避難引導，強化關鍵基礎設施防護。", cid: "B" }
+    ];
+
+    policies.sort(() => Math.random() - 0.5);
+
+    let currentIndex = 0;
+    let votes = [];
+    const container = document.getElementById("cardContainer");
+
+    function renderCard() {
+        if (currentIndex >= policies.length) {
+            showResult();
+            return;
+        }
+
+        document.getElementById("progress").innerText = `第 ${currentIndex + 1} / ${policies.length} 條政見`;
+        const item = policies[currentIndex];
+
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+            <span class="tag">${item.category}</span>
+            <div class="title">${item.title}</div>
+            <div class="desc">${item.desc}</div>
+            <div class="stamp stamp-like">認同</div>
+            <div class="stamp stamp-dislike">不認同</div>
+        `;
+
+        container.appendChild(card);
+        initDrag(card);
+    }
+
+    function initDrag(card) {
+        let isDragging = false;
+        let startX = 0;
+        let currentX = 0;
+        const likeStamp = card.querySelector(".stamp-like");
+        const dislikeStamp = card.querySelector(".stamp-dislike");
+
+        const onStart = (e) => {
+            isDragging = true;
+            startX = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
+            card.style.transition = "none";
+        };
+
+        const onMove = (e) => {
+            if (!isDragging) return;
+            const x = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
+            currentX = x - startX;
+            const rotate = currentX / 15;
+            card.style.transform = `translateX(${currentX}px) rotate(${rotate}deg)`;
+
+            if (currentX > 30) {
+                likeStamp.style.opacity = Math.min(currentX / 100, 1);
+                dislikeStamp.style.opacity = 0;
+            } else if (currentX < -30) {
+                dislikeStamp.style.opacity = Math.min(-currentX / 100, 1);
+                likeStamp.style.opacity = 0;
+            } else {
+                likeStamp.style.opacity = 0;
+                dislikeStamp.style.opacity = 0;
+            }
+        };
+
+        const onEnd = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            card.style.transition = "transform 0.3s ease, opacity 0.3s ease";
+
+            if (currentX > 100) {
+                completeSwipe(card, "right");
+            } else if (currentX < -100) {
+                completeSwipe(card, "left");
+            } else {
+                card.style.transform = "translateX(0) rotate(0)";
+                likeStamp.style.opacity = 0;
+                dislikeStamp.style.opacity = 0;
+            }
+        };
+
+        card.addEventListener("mousedown", onStart);
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("mouseup", onEnd);
+
+        card.addEventListener("touchstart", onStart);
+        document.addEventListener("touchmove", onMove);
+        document.addEventListener("touchend", onEnd);
+    }
+
+    function swipe(direction) {
+        const card = container.querySelector(".card");
+        if (card) completeSwipe(card, direction);
+    }
+
+    function completeSwipe(card, direction) {
+        const moveX = direction === "right" ? 500 : -500;
+        const rotate = direction === "right" ? 30 : -30;
+        card.style.transform = `translateX(${moveX}px) rotate(${rotate}deg)`;
+        card.style.opacity = "0";
+
+        if (direction === "right") {
+            votes.push(policies[currentIndex]);
+        }
+
+        setTimeout(() => {
+            card.remove();
+            currentIndex++;
+            renderCard();
+        }, 300);
+    }
+
+    function showResult() {
+        document.getElementById("progress").innerText = "測試完成！";
+        document.getElementById("controls").style.display = "none";
+
+        const score = {};
+        Object.keys(candidates).forEach(cid => score[cid] = 0);
+        votes.forEach(item => { score[item.cid] = (score[item.cid] || 0) + 1; });
+        const totalVotes = votes.length;
+
+        let html = `<div class="result-card"><h2>你的政見契合度結果</h2>`;
+        if (totalVotes === 0) {
+            html += `<p style="color:#64748b;">你沒有認同任何政見！</p>`;
+        } else {
+            html += `<p style="color:#64748b; margin-bottom:20px;">在你認同的 ${totalVotes} 條政見中：</p>`;
+            for (let cid in score) {
+                const count = score[cid];
+                const percentage = Math.round((count / totalVotes) * 100);
+                html += `<div class="result-item"><strong>${candidates[cid]}</strong>: 認同 ${count} 條 (${percentage}%)</div>`;
+            }
+        }
+        html += `<button onclick="location.reload()" style="margin-top:15px; width:100%; padding:12px; border:none; border-radius:10px; background:#3b82f6; color:white; font-weight:bold; cursor:pointer;">再玩一次</button></div>`;
+        container.innerHTML = html;
+    }
+
+    renderCard();
+</script>
+</body>
+</html>
